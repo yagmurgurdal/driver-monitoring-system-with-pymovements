@@ -1,0 +1,23 @@
+.venv/
+.venv312/
+github_upload_clean/
+__pycache__/
+*.py[cod]
+*.pyd
+
+# Generated datasets and reports
+csvcleaned/
+perclos/
+window_dataset/
+results/
+pymovements_input_test/
+window_dataset.xlsx
+window_dataset_errors.xlsx
+window_dataset_summary.xlsx
+window_validation_report.xlsx
+normal_window_dataset_summary.xlsx
+normal_window_validation_report.xlsx
+
+# Office temp files
+~$*.xlsx
+~$*.docx
