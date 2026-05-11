@@ -40,8 +40,6 @@ from realtime_driver_monitor import (
     RuntimeConfig,
 )
 
-DEFAULT_DESKTOP_MODEL_BUNDLE = Path("results") / "random_forest_baseline" / "model_bundle.pkl"
-
 
 def frame_to_pixmap(frame):
     if frame is None:
@@ -176,10 +174,7 @@ class DriverMonitorWindow(QMainWindow):
         controls_layout.setHorizontalSpacing(14)
         controls_layout.setVerticalSpacing(12)
 
-        default_model_bundle = (
-            DEFAULT_DESKTOP_MODEL_BUNDLE if DEFAULT_DESKTOP_MODEL_BUNDLE.exists() else DEFAULT_MODEL_BUNDLE
-        )
-        self.model_path_edit = QLineEdit(str(default_model_bundle))
+        self.model_path_edit = QLineEdit(str(DEFAULT_MODEL_BUNDLE))
         self.video_path_edit = QLineEdit("")
         self.camera_index_spin = QSpinBox()
         self.camera_index_spin.setRange(0, 10)

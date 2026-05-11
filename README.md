@@ -133,22 +133,22 @@ Notes:
 
 ## Real-Time Monitoring
 
-First train a baseline model and create `model_bundle.pkl`:
+The primary model used in the project is the gaze-supported high-confidence Random Forest model. To train it:
 
 ```powershell
-.venv\Scripts\python.exe train_random_forest.py --window-root .\window_dataset --output-dir .\results\random_forest_baseline
+.venv\Scripts\python.exe train_random_forest.py --window-root .\window_dataset_with_gaze --output-dir .\results\random_forest_gaze_high_confidence --feature-set gaze --use-high-confidence
 ```
 
 Run the live monitor with a webcam:
 
 ```powershell
-.venv\Scripts\python.exe realtime_driver_monitor.py --model-bundle .\results\random_forest_baseline\model_bundle.pkl
+.venv\Scripts\python.exe realtime_driver_monitor.py --model-bundle .\results\random_forest_gaze_high_confidence\model_bundle.pkl
 ```
 
 Run it on a video file:
 
 ```powershell
-.venv\Scripts\python.exe realtime_driver_monitor.py --model-bundle .\results\random_forest_baseline\model_bundle.pkl --video-path C:\path\to\video.mp4
+.venv\Scripts\python.exe realtime_driver_monitor.py --model-bundle .\results\random_forest_gaze_high_confidence\model_bundle.pkl --video-path C:\path\to\video.mp4
 ```
 
 ### Desktop App
@@ -156,7 +156,7 @@ Run it on a video file:
 The repository also includes a PySide6-based desktop application that wraps the same realtime monitor engine in a dashboard-style interface:
 
 ```powershell
-.venv\Scripts\python.exe desktop_driver_monitor.py --model-bundle .\results\random_forest_baseline\model_bundle.pkl
+.venv\Scripts\python.exe desktop_driver_monitor.py --model-bundle .\results\random_forest_gaze_high_confidence\model_bundle.pkl
 ```
 
 The desktop app provides:
