@@ -151,12 +151,28 @@ Run it on a video file:
 .venv\Scripts\python.exe realtime_driver_monitor.py --model-bundle .\results\random_forest_baseline\model_bundle.pkl --video-path C:\path\to\video.mp4
 ```
 
+### Desktop App
+
+The repository also includes a PySide6-based desktop application that wraps the same realtime monitor engine in a dashboard-style interface:
+
+```powershell
+.venv\Scripts\python.exe desktop_driver_monitor.py --model-bundle .\results\random_forest_baseline\model_bundle.pkl
+```
+
+The desktop app provides:
+
+- live video preview
+- current state and confidence cards
+- rolling quality and metric display
+- SQLite session metadata display
+- recent event feed for state changes and drowsiness alerts
+
 The real-time system currently includes:
 
 - rolling window-based live classification
 - confidence smoothing and quality gating
 - SQLite session logging
-- sustained-drowsiness audio alert support
+- separate sustained-state audio alerts for drowsiness and distraction
 
 Useful options:
 

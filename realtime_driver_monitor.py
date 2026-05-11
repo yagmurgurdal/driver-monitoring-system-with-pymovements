@@ -90,6 +90,23 @@ class RuntimeConfig:
     drowsiness_alert_seconds: float = 2.0
     drowsiness_alert_cooldown_sec: float = 4.0
     drowsiness_alert_enabled: bool = True
+    distraction_alert_seconds: float = 2.0
+    distraction_alert_cooldown_sec: float = 4.0
+    distraction_alert_enabled: bool = True
+
+
+@dataclass
+class MonitorFrameResult:
+    frame_index: int
+    time_sec: float
+    label: str
+    confidence: float
+    usable: bool
+    live_row: Dict
+    window_features: Optional[Dict]
+    display_frame: np.ndarray
+    alert_triggered: bool = False
+    alert_label: Optional[str] = None
 
 
 def utc_now_iso() -> str:
@@ -115,14 +132,18 @@ def load_model_bundle(path: Path) -> Dict:
     return bundle
 
 
-def play_drowsiness_alert_sound():
+def play_state_alert_sound(label: str):
     if winsound is None:
         print("\a", end="", flush=True)
         return
 
+    sound_alias = "SystemExclamation"
+    if label == "distraction":
+        sound_alias = "SystemAsterisk"
+
     try:
         winsound.PlaySound(
-            "SystemExclamation",
+            sound_alias,
             winsound.SND_ALIAS | winsound.SND_ASYNC | winsound.SND_NODEFAULT,
         )
     except RuntimeError:
@@ -367,37 +388,52 @@ class RealtimeDatabaseLogger:
         self.connection.close()
 
 
-class DrowsinessAlertManager:
+class StateAlertManager:
     def __init__(self, config: RuntimeConfig):
-        self.enabled = bool(config.drowsiness_alert_enabled)
-        self.trigger_after_sec = max(0.0, float(config.drowsiness_alert_seconds))
-        self.cooldown_sec = max(0.0, float(config.drowsiness_alert_cooldown_sec))
-        self.current_start_time: Optional[float] = None
-        self.last_alert_time: Optional[float] = None
+        self.rules = {
+            "drowsiness": {
+                "enabled": bool(config.drowsiness_alert_enabled),
+                "trigger_after_sec": max(0.0, float(config.drowsiness_alert_seconds)),
+                "cooldown_sec": max(0.0, float(config.drowsiness_alert_cooldown_sec)),
+                "current_start_time": None,
+                "last_alert_time": None,
+            },
+            "distraction": {
+                "enabled": bool(config.distraction_alert_enabled),
+                "trigger_after_sec": max(0.0, float(config.distraction_alert_seconds)),
+                "cooldown_sec": max(0.0, float(config.distraction_alert_cooldown_sec)),
+                "current_start_time": None,
+                "last_alert_time": None,
+            },
+        }
 
-    def update(self, label: str, time_sec: float) -> bool:
-        if not self.enabled:
-            return False
+    def update(self, label: str, time_sec: float) -> Optional[str]:
+        for state_label, rule in self.rules.items():
+            if label != state_label:
+                rule["current_start_time"] = None
 
-        if label != "drowsiness":
-            self.current_start_time = None
-            return False
+        if label not in self.rules:
+            return None
 
-        if self.current_start_time is None:
-            self.current_start_time = float(time_sec)
-            return False
+        rule = self.rules[label]
+        if not rule["enabled"]:
+            return None
 
-        elapsed = float(time_sec) - self.current_start_time
-        if elapsed < self.trigger_after_sec:
-            return False
+        if rule["current_start_time"] is None:
+            rule["current_start_time"] = float(time_sec)
+            return None
 
-        if self.last_alert_time is not None:
-            if (float(time_sec) - self.last_alert_time) < self.cooldown_sec:
-                return False
+        elapsed = float(time_sec) - float(rule["current_start_time"])
+        if elapsed < float(rule["trigger_after_sec"]):
+            return None
 
-        play_drowsiness_alert_sound()
-        self.last_alert_time = float(time_sec)
-        return True
+        if rule["last_alert_time"] is not None:
+            if (float(time_sec) - float(rule["last_alert_time"])) < float(rule["cooldown_sec"]):
+                return None
+
+        play_state_alert_sound(label)
+        rule["last_alert_time"] = float(time_sec)
+        return label
 
 
 class LiveFeatureExtractor:
@@ -1089,6 +1125,246 @@ def draw_overlay(
         )
 
 
+class RealtimeMonitorEngine:
+    def __init__(
+        self,
+        model_bundle_path: Path,
+        config: RuntimeConfig,
+        camera_index: int = 0,
+        video_path: str = "",
+        db_path: Path = DEFAULT_DB_PATH,
+        disable_db: bool = False,
+        enable_high_confidence_rule_gate: bool = False,
+        render_overlay: bool = True,
+        resize_output: bool = True,
+    ):
+        self.model_bundle_path = Path(model_bundle_path)
+        if not self.model_bundle_path.exists():
+            raise FileNotFoundError(
+                f"Model bundle not found: {self.model_bundle_path}. "
+                "Run train_random_forest.py first to create model_bundle.pkl."
+            )
+
+        bundle = load_model_bundle(self.model_bundle_path)
+        self.model = bundle["model"]
+        self.feature_columns = list(bundle["feature_columns"])
+        self.feature_set = str(bundle.get("feature_set", "baseline"))
+        self.use_high_confidence_model = bool(bundle.get("use_high_confidence")) or (
+            "high_confidence" in str(self.model_bundle_path).lower()
+        )
+        self.enable_high_confidence_rule_gate = bool(enable_high_confidence_rule_gate)
+        self.config = config
+        self.render_overlay = bool(render_overlay)
+        self.resize_output = bool(resize_output)
+
+        self.cap, self.source_description = open_video_source(video_path, camera_index)
+        self.fps = self.cap.get(cv2.CAP_PROP_FPS)
+        if not self.fps or self.fps <= 0 or np.isnan(self.fps):
+            self.fps = 30.0
+
+        self.window_frames = max(1, int(round(self.fps * config.window_sec)))
+        self.frame_buffer: Deque[Dict] = deque(maxlen=self.window_frames)
+        self.probability_history: Deque[np.ndarray] = deque(maxlen=config.smoothing_windows)
+        self.extractor = LiveFeatureExtractor(fast_mode=config.fast_mode)
+        self.face_mesh = get_face_mesh(fast_mode=config.fast_mode)
+        self.alert_manager = StateAlertManager(config)
+        self.db_logger = None
+        self.db_path = None if disable_db else Path(db_path)
+        if not disable_db:
+            self.db_logger = RealtimeDatabaseLogger(
+                db_path=Path(db_path),
+                model_bundle_path=self.model_bundle_path,
+                source_description=self.source_description,
+                config=config,
+                fps=self.fps,
+            )
+
+        self.frame_index = 0
+        self.current_label = "unknown"
+        self.current_confidence = -1.0
+        self.current_window_features = None
+        self.current_usable = False
+        self.read_failures = 0
+        self.pending_label: Optional[str] = None
+        self.pending_count = 0
+        self.unknown_streak = 0
+        self._closed = False
+
+    @property
+    def session_id(self) -> Optional[int]:
+        if self.db_logger is None:
+            return None
+        return self.db_logger.session_id
+
+    def process_next_frame(self) -> Optional[MonitorFrameResult]:
+        if self._closed:
+            return None
+
+        while True:
+            ok, frame = self.cap.read()
+            if ok and frame is not None:
+                break
+
+            self.read_failures += 1
+            if self.frame_index == 0:
+                raise RuntimeError(
+                    f"Source opened but no frame could be read: {self.source_description}. "
+                    "This usually means the webcam is busy, blocked by privacy settings, "
+                    "or the backend can open the device but cannot stream frames."
+                )
+
+            if self.read_failures >= 5:
+                return None
+
+        self.frame_index += 1
+        self.read_failures = 0
+
+        live_row = self.extractor.extract(frame, self.frame_index, self.fps, self.face_mesh)
+        self.frame_buffer.append(live_row)
+        if self.db_logger is not None:
+            self.db_logger.log_frame(live_row)
+
+        alert_triggered = False
+        alert_label = None
+        if (
+            len(self.frame_buffer) >= self.window_frames
+            and self.frame_index % self.config.predict_every_frames == 0
+        ):
+            self.current_window_features = resolve_live_window_features(
+                list(self.frame_buffer),
+                self.feature_set,
+                self.config,
+            )
+            self.current_usable = bool(self.current_window_features["is_usable"])
+
+            if can_predict(self.current_window_features, self.feature_columns):
+                feature_df = build_feature_frame(self.current_window_features, self.feature_columns)
+                self.probability_history.append(self.model.predict_proba(feature_df)[0])
+                smoothed_probs = average_probabilities(self.probability_history)
+                raw_label, raw_confidence = decide_prediction(
+                    probs=smoothed_probs,
+                    classes=self.model.classes_,
+                    window_features=self.current_window_features,
+                    config=self.config,
+                    enforce_high_confidence_rules=(
+                        self.use_high_confidence_model and self.enable_high_confidence_rule_gate
+                    ),
+                )
+                (
+                    self.current_label,
+                    self.current_confidence,
+                    self.pending_label,
+                    self.pending_count,
+                    self.unknown_streak,
+                ) = update_stable_label(
+                    displayed_label=self.current_label,
+                    displayed_confidence=self.current_confidence,
+                    candidate_label=raw_label,
+                    candidate_confidence=raw_confidence,
+                    pending_label=self.pending_label,
+                    pending_count=self.pending_count,
+                    unknown_streak=self.unknown_streak,
+                    config=self.config,
+                )
+            else:
+                self.probability_history.clear()
+                (
+                    self.current_label,
+                    self.current_confidence,
+                    self.pending_label,
+                    self.pending_count,
+                    self.unknown_streak,
+                ) = update_stable_label(
+                    displayed_label=self.current_label,
+                    displayed_confidence=self.current_confidence,
+                    candidate_label="unknown",
+                    candidate_confidence=-1.0,
+                    pending_label=self.pending_label,
+                    pending_count=self.pending_count,
+                    unknown_streak=self.unknown_streak,
+                    config=self.config,
+                )
+
+            if self.db_logger is not None:
+                self.db_logger.log_prediction(
+                    frame_index=self.frame_index,
+                    predicted_label=self.current_label,
+                    confidence=self.current_confidence,
+                    quality_usable=self.current_usable,
+                    window_features=self.current_window_features,
+                )
+
+            alert_label = self.alert_manager.update(
+                self.current_label,
+                live_row["time_sec"],
+            )
+            alert_triggered = alert_label is not None
+
+        preview_frame = frame.copy()
+        if self.render_overlay:
+            draw_overlay(
+                frame=preview_frame,
+                live_row=live_row,
+                window_features=self.current_window_features,
+                label=self.current_label,
+                confidence=self.current_confidence,
+                usable=self.current_usable,
+            )
+
+        if self.resize_output:
+            display_frame = resize_for_display(
+                preview_frame,
+                max_width=self.config.display_max_width,
+                max_height=self.config.display_max_height,
+            )
+        else:
+            display_frame = preview_frame
+        return MonitorFrameResult(
+            frame_index=self.frame_index,
+            time_sec=float(live_row["time_sec"]),
+            label=self.current_label,
+            confidence=self.current_confidence,
+            usable=self.current_usable,
+            live_row=live_row,
+            window_features=self.current_window_features,
+            display_frame=display_frame,
+            alert_triggered=alert_triggered,
+            alert_label=alert_label,
+        )
+
+    def close(self):
+        if self._closed:
+            return
+        self._closed = True
+        if self.db_logger is not None:
+            self.db_logger.close()
+        self.face_mesh.close()
+        self.cap.release()
+
+
+def build_runtime_config_from_args(args) -> RuntimeConfig:
+    return RuntimeConfig(
+        window_sec=args.window_sec,
+        predict_every_frames=max(1, args.predict_every_frames),
+        fast_mode=args.fast_mode,
+        min_face_ratio=args.min_face_ratio,
+        min_pose_ratio=args.min_pose_ratio,
+        min_ear_ratio=args.min_ear_ratio,
+        display_max_width=args.display_max_width,
+        display_max_height=args.display_max_height,
+        min_confidence=args.min_confidence,
+        min_confidence_margin=args.min_confidence_margin,
+        switch_confirmations=max(1, args.switch_confirmations),
+        unknown_confirmations=max(1, args.unknown_confirmations),
+        drowsiness_alert_seconds=max(0.0, float(args.drowsiness_alert_seconds)),
+        drowsiness_alert_cooldown_sec=max(0.0, float(args.drowsiness_alert_cooldown_sec)),
+        drowsiness_alert_enabled=not bool(args.disable_drowsiness_alert),
+        distraction_alert_seconds=max(0.0, float(args.distraction_alert_seconds)),
+        distraction_alert_cooldown_sec=max(0.0, float(args.distraction_alert_cooldown_sec)),
+        distraction_alert_enabled=not bool(args.disable_distraction_alert),
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(description="Run realtime driver monitoring on webcam or video.")
     parser.add_argument(
@@ -1166,196 +1442,80 @@ def main():
         help="Disable the drowsiness sound alert.",
     )
     parser.add_argument(
+        "--distraction-alert-seconds",
+        type=float,
+        default=2.0,
+        help="Play a separate sound if the stable label stays distraction for this many consecutive seconds.",
+    )
+    parser.add_argument(
+        "--distraction-alert-cooldown-sec",
+        type=float,
+        default=4.0,
+        help="Minimum time between repeated distraction alerts while the driver remains distracted.",
+    )
+    parser.add_argument(
+        "--disable-distraction-alert",
+        action="store_true",
+        help="Disable the distraction sound alert.",
+    )
+    parser.add_argument(
         "--enable-high-confidence-rule-gate",
         action="store_true",
         help="Enforce the handcrafted high-confidence rules when a high-confidence model bundle is loaded.",
     )
     args = parser.parse_args()
-
-    model_bundle_path = Path(args.model_bundle)
-    if not model_bundle_path.exists():
-        raise FileNotFoundError(
-            f"Model bundle not found: {model_bundle_path}. "
-            "Run train_random_forest.py first to create model_bundle.pkl."
-        )
-
-    bundle = load_model_bundle(model_bundle_path)
-    model = bundle["model"]
-    feature_columns = list(bundle["feature_columns"])
-    feature_set = str(bundle.get("feature_set", "baseline"))
-    use_high_confidence_model = bool(bundle.get("use_high_confidence")) or ("high_confidence" in str(model_bundle_path).lower())
-
-    config = RuntimeConfig(
-        window_sec=args.window_sec,
-        predict_every_frames=max(1, args.predict_every_frames),
-        fast_mode=args.fast_mode,
-        min_face_ratio=args.min_face_ratio,
-        min_pose_ratio=args.min_pose_ratio,
-        min_ear_ratio=args.min_ear_ratio,
-        display_max_width=args.display_max_width,
-        display_max_height=args.display_max_height,
-        min_confidence=args.min_confidence,
-        min_confidence_margin=args.min_confidence_margin,
-        switch_confirmations=max(1, args.switch_confirmations),
-        unknown_confirmations=max(1, args.unknown_confirmations),
-        drowsiness_alert_seconds=max(0.0, float(args.drowsiness_alert_seconds)),
-        drowsiness_alert_cooldown_sec=max(0.0, float(args.drowsiness_alert_cooldown_sec)),
-        drowsiness_alert_enabled=not bool(args.disable_drowsiness_alert),
+    config = build_runtime_config_from_args(args)
+    engine = RealtimeMonitorEngine(
+        model_bundle_path=Path(args.model_bundle),
+        config=config,
+        camera_index=args.camera_index,
+        video_path=args.video_path,
+        db_path=Path(args.db_path),
+        disable_db=bool(args.disable_db),
+        enable_high_confidence_rule_gate=bool(args.enable_high_confidence_rule_gate),
     )
 
-    cap, source_description = open_video_source(args.video_path, args.camera_index)
-
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    if not fps or fps <= 0 or np.isnan(fps):
-        fps = 30.0
-
-    window_frames = max(1, int(round(fps * config.window_sec)))
-    frame_buffer: Deque[Dict] = deque(maxlen=window_frames)
-    probability_history: Deque[np.ndarray] = deque(maxlen=config.smoothing_windows)
-    extractor = LiveFeatureExtractor(fast_mode=config.fast_mode)
-    face_mesh = get_face_mesh(fast_mode=config.fast_mode)
-    alert_manager = DrowsinessAlertManager(config)
-    db_logger = None
-    if not args.disable_db:
-        db_logger = RealtimeDatabaseLogger(
-            db_path=Path(args.db_path),
-            model_bundle_path=model_bundle_path,
-            source_description=source_description,
-            config=config,
-            fps=fps,
-        )
-
-    frame_index = 0
-    current_label = "unknown"
-    current_confidence = -1.0
-    current_window_features = None
-    current_usable = False
-    read_failures = 0
-    pending_label: Optional[str] = None
-    pending_count = 0
-    unknown_streak = 0
-
     try:
-        print(f"[INFO] Opened source: {source_description}")
-        if db_logger is not None:
+        print(f"[INFO] Opened source: {engine.source_description}")
+        if engine.db_logger is not None:
             print(f"[INFO] Logging to database: {Path(args.db_path)}")
         cv2.namedWindow("Realtime Driver Monitor", cv2.WINDOW_NORMAL)
         while True:
-            ok, frame = cap.read()
-            if not ok or frame is None:
-                read_failures += 1
-                if frame_index == 0:
-                    message = [
-                        f"Source opened but no frame could be read: {source_description}",
-                        "This usually means the webcam is busy, blocked by privacy settings,",
-                        "or the backend can open the device but cannot stream frames.",
-                        "Close Zoom/Teams/Camera, check Windows camera permission,",
-                        "or try --camera-index 1 / 2.",
-                        "Press Q, ESC, or Enter to close.",
-                    ]
-                    print("[ERROR] No frames received from source.")
-                    show_status_screen("No Frames Received", message)
-                    return
-
-                if read_failures >= 5:
+            try:
+                result = engine.process_next_frame()
+                if result is None:
                     print("[WARN] Frame stream ended or stalled.")
                     break
-                continue
 
-            try:
-                frame_index += 1
-                read_failures = 0
-                live_row = extractor.extract(frame, frame_index, fps, face_mesh)
-                frame_buffer.append(live_row)
-                if db_logger is not None:
-                    db_logger.log_frame(live_row)
+                if result.alert_triggered:
+                    alert_name = result.alert_label or "state"
+                    threshold_sec = (
+                        config.drowsiness_alert_seconds
+                        if result.alert_label == "drowsiness"
+                        else config.distraction_alert_seconds
+                    )
+                    print(
+                        f"[ALERT] {alert_name.capitalize()} warning triggered at "
+                        f"{result.time_sec:.2f}s after {threshold_sec:.1f}s."
+                    )
 
-                if len(frame_buffer) >= window_frames and frame_index % config.predict_every_frames == 0:
-                    current_window_features = resolve_live_window_features(list(frame_buffer), feature_set, config)
-                    current_usable = bool(current_window_features["is_usable"])
-
-                    if can_predict(current_window_features, feature_columns):
-                        feature_df = build_feature_frame(current_window_features, feature_columns)
-                        probability_history.append(model.predict_proba(feature_df)[0])
-                        smoothed_probs = average_probabilities(probability_history)
-                        raw_label, raw_confidence = decide_prediction(
-                            probs=smoothed_probs,
-                            classes=model.classes_,
-                            window_features=current_window_features,
-                            config=config,
-                            enforce_high_confidence_rules=(
-                                use_high_confidence_model and args.enable_high_confidence_rule_gate
-                            ),
-                        )
-                        (
-                            current_label,
-                            current_confidence,
-                            pending_label,
-                            pending_count,
-                            unknown_streak,
-                        ) = update_stable_label(
-                            displayed_label=current_label,
-                            displayed_confidence=current_confidence,
-                            candidate_label=raw_label,
-                            candidate_confidence=raw_confidence,
-                            pending_label=pending_label,
-                            pending_count=pending_count,
-                            unknown_streak=unknown_streak,
-                            config=config,
-                        )
-                    else:
-                        probability_history.clear()
-                        (
-                            current_label,
-                            current_confidence,
-                            pending_label,
-                            pending_count,
-                            unknown_streak,
-                        ) = update_stable_label(
-                            displayed_label=current_label,
-                            displayed_confidence=current_confidence,
-                            candidate_label="unknown",
-                            candidate_confidence=-1.0,
-                            pending_label=pending_label,
-                            pending_count=pending_count,
-                            unknown_streak=unknown_streak,
-                            config=config,
-                        )
-
-                    if db_logger is not None:
-                        db_logger.log_prediction(
-                            frame_index=frame_index,
-                            predicted_label=current_label,
-                            confidence=current_confidence,
-                            quality_usable=current_usable,
-                            window_features=current_window_features,
-                        )
-
-                    if alert_manager.update(current_label, live_row["time_sec"]):
-                        print(
-                            f"[ALERT] Drowsiness warning triggered at "
-                            f"{live_row['time_sec']:.2f}s after {config.drowsiness_alert_seconds:.1f}s."
-                        )
-
-                draw_overlay(
-                    frame=frame,
-                    live_row=live_row,
-                    window_features=current_window_features,
-                    label=current_label,
-                    confidence=current_confidence,
-                    usable=current_usable,
-                )
-
-                display_frame = resize_for_display(
-                    frame,
-                    max_width=config.display_max_width,
-                    max_height=config.display_max_height,
-                )
-                cv2.imshow("Realtime Driver Monitor", display_frame)
+                cv2.imshow("Realtime Driver Monitor", result.display_frame)
                 key = cv2.waitKey(1) & 0xFF
                 if key in (27, ord("q"), ord("Q")):
                     break
             except Exception as exc:
+                if engine.frame_index == 0:
+                    print("[ERROR] No frames received from source.")
+                    show_status_screen(
+                        "No Frames Received",
+                        [
+                            str(exc),
+                            "Close Zoom/Teams/Camera, check Windows camera permission,",
+                            "or try --camera-index 1 / 2.",
+                            "Press Q, ESC, or Enter to close.",
+                        ],
+                    )
+                    return
                 error_text = traceback.format_exc()
                 print(error_text)
                 show_status_screen(
@@ -1369,10 +1529,7 @@ def main():
                 )
                 return
     finally:
-        if db_logger is not None:
-            db_logger.close()
-        face_mesh.close()
-        cap.release()
+        engine.close()
         cv2.destroyAllWindows()
 
 

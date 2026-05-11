@@ -4,3 +4,5 @@ scikit-learn
 numpy
 mediapipe
 opencv-python
+pymovements
+PySide6
