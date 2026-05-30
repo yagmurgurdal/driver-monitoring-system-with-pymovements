@@ -7,7 +7,9 @@ import pandas as pd
 
 
 NORMAL_SOURCE_ROOT_DEFAULT = os.path.join(os.getcwd(), "csvcleaned", "normal")
-WINDOW_ROOT_DEFAULT = r"D:\window\normal"
+WINDOW_ROOT_DEFAULT = (
+    r"D:\window\normal" if os.path.exists(r"D:\window") else os.path.join(os.getcwd(), "window_dataset", "normal")
+)
 REPORT_PATH_DEFAULT = os.path.join(os.getcwd(), "normal_window_validation_report.xlsx")
 
 WINDOW_SIZE = 90

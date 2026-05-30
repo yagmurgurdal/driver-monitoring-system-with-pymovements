@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 
-from build_normal_pymovements_inputs import build_source_to_gaze_mapping
+from scripts.gaze.build_normal_pymovements_inputs import build_source_to_gaze_mapping
 
 
 CSV_ROOT_DEFAULT = os.path.join(os.getcwd(), "csvcleaned")

@@ -197,6 +197,13 @@ def summarize_durations_ms(sample_counts: List[int], sample_period_sec: float) -
     }
 
 
+def duration_or_zero(summary: Dict[str, Optional[float]], key: str) -> float:
+    value = summary.get(key)
+    if value is None and summary.get("count", 0) == 0:
+        return 0.0
+    return float(value) if value is not None else 0.0
+
+
 def boolean_run_sample_counts(mask: np.ndarray, min_samples: int) -> List[int]:
     if mask.size == 0:
         return []
@@ -337,16 +344,16 @@ def compute_window_features(
         "std_velocity_norm": safe_float(float(np.std(all_velocity))) if all_velocity.size else None,
         "max_velocity_norm": safe_float(float(np.max(all_velocity))) if all_velocity.size else None,
         "idt_fixation_count": idt_summary["count"],
-        "idt_fixation_mean_duration_ms": safe_float(idt_summary["mean_ms"], 3),
-        "idt_fixation_max_duration_ms": safe_float(idt_summary["max_ms"], 3),
+        "idt_fixation_mean_duration_ms": safe_float(duration_or_zero(idt_summary, "mean_ms"), 3),
+        "idt_fixation_max_duration_ms": safe_float(duration_or_zero(idt_summary, "max_ms"), 3),
         "idt_fixation_ratio": safe_float(idt_summary["total_samples"] / valid_samples, 4) if valid_samples else None,
         "ivt_fixation_count": ivt_summary["count"],
-        "ivt_fixation_mean_duration_ms": safe_float(ivt_summary["mean_ms"], 3),
-        "ivt_fixation_max_duration_ms": safe_float(ivt_summary["max_ms"], 3),
+        "ivt_fixation_mean_duration_ms": safe_float(duration_or_zero(ivt_summary, "mean_ms"), 3),
+        "ivt_fixation_max_duration_ms": safe_float(duration_or_zero(ivt_summary, "max_ms"), 3),
         "ivt_fixation_ratio": safe_float(ivt_summary["total_samples"] / valid_samples, 4) if valid_samples else None,
         "rapid_shift_count": rapid_summary["count"],
-        "rapid_shift_mean_duration_ms": safe_float(rapid_summary["mean_ms"], 3),
-        "rapid_shift_max_duration_ms": safe_float(rapid_summary["max_ms"], 3),
+        "rapid_shift_mean_duration_ms": safe_float(duration_or_zero(rapid_summary, "mean_ms"), 3),
+        "rapid_shift_max_duration_ms": safe_float(duration_or_zero(rapid_summary, "max_ms"), 3),
         "rapid_shift_ratio": safe_float(rapid_summary["total_samples"] / valid_samples, 4) if valid_samples else None,
     }
     return feature_row

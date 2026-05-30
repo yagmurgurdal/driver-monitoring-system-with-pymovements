@@ -5,7 +5,7 @@ from typing import Dict, List, Tuple
 
 import pandas as pd
 
-import build_pymovements_window_features as window_builder
+from scripts.gaze import build_pymovements_window_features as window_builder
 
 
 REPORT_PATH_DEFAULT = os.path.join(os.getcwd(), "pymovements_window_repair_report.xlsx")

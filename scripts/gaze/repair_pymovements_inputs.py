@@ -5,7 +5,7 @@ from typing import Dict, List, Tuple
 
 import pandas as pd
 
-from extract_pymovements_inputs import (
+from scripts.gaze.extract_pymovements_inputs import (
     DEFAULT_DISTRACTION_ROOT,
     DEFAULT_DROWSINESS_ROOT,
     DEFAULT_OUTPUT_ROOT,

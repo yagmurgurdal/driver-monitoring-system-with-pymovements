@@ -8,7 +8,9 @@ import pandas as pd
 
 CSV_ROOT_DEFAULT = os.path.join(os.getcwd(), "csvcleaned")
 PERCLOS_ROOT_DEFAULT = os.path.join(os.getcwd(), "perclos")
-WINDOW_ROOT_DEFAULT = r"D:\window"
+WINDOW_ROOT_DEFAULT = (
+    r"D:\window" if os.path.exists(r"D:\window") else os.path.join(os.getcwd(), "window_dataset")
+)
 REPORT_PATH_DEFAULT = os.path.join(os.getcwd(), "window_validation_report.xlsx")
 
 LABELS = ("drowsiness", "distraction")

@@ -5,6 +5,9 @@ from pathlib import Path
 import pandas as pd
 
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+
 def accuracy_from_confusion_matrix(path: Path) -> dict:
     df = pd.read_excel(path, index_col=0)
     total = int(df.to_numpy().sum())
@@ -77,7 +80,7 @@ def main():
     parser.add_argument(
         "--results-dir",
         type=Path,
-        default=Path(r"C:\Users\yagmu\Desktop\proje\bitirmeprojesi\results\random_forest_high_confidence"),
+        default=PROJECT_ROOT / "results" / "random_forest_high_confidence",
         help="Results directory containing confusion_matrix.xlsx, test_predictions.xlsx, and metrics.json",
     )
     args = parser.parse_args()

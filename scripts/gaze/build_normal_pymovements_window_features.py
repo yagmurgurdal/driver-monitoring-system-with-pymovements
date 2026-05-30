@@ -6,7 +6,7 @@ from typing import Dict, List
 
 import pandas as pd
 
-from build_pymovements_window_features import (
+from scripts.gaze.build_pymovements_window_features import (
     WindowConfig,
     compute_window_features,
     estimate_expected_frame_step,

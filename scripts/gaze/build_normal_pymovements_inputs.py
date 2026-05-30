@@ -171,38 +171,58 @@ def build_source_to_gaze_mapping(
         }
         for path in gaze_files
     }
+    source_candidates: Dict[str, List[Tuple[Tuple[float, int, Tuple[int, int, int, int, str]], str]]] = {}
 
     for source_path in source_files:
         source_duration = estimate_duration_xlsx(source_path)
         source_rows = estimate_row_count_xlsx(source_path)
-        candidate_path = None
-        candidate_score = None
+        candidates: List[Tuple[Tuple[float, int, Tuple[int, int, int, int, str]], str]] = []
 
         for gaze_path in gaze_files:
             gaze_duration = gaze_stats[gaze_path]["duration"]
             gaze_rows = gaze_stats[gaze_path]["rows"]
             duration_diff = abs(source_duration - gaze_duration)
             row_diff = abs(source_rows - gaze_rows)
+            if duration_diff > duration_tolerance_sec:
+                continue
             score = (round(duration_diff, 6), row_diff, gaze_name_key(Path(gaze_path).stem))
+            candidates.append((score, gaze_path))
 
-            if candidate_score is None or score < candidate_score:
-                candidate_path = gaze_path
-                candidate_score = score
+        source_candidates[source_path] = sorted(candidates, key=lambda item: item[0])
 
-        if candidate_path is None:
+    assigned_gaze_paths = set()
+    source_order = sorted(
+        source_files,
+        key=lambda path: (
+            len(source_candidates[path]),
+            source_candidates[path][0][0] if source_candidates[path] else (float("inf"), float("inf"), gaze_name_key("")),
+            natural_numeric_key(Path(path).stem),
+        ),
+    )
+
+    for source_path in source_order:
+        candidates = source_candidates[source_path]
+        if not candidates:
+            mismatch_messages.append(f"{os.path.basename(source_path)} -> no gaze candidate")
+            continue
+
+        chosen_path = None
+        for _, gaze_path in candidates:
+            if gaze_path in assigned_gaze_paths:
+                continue
+            chosen_path = gaze_path
+            break
+
+        if chosen_path is None:
+            best_candidate = candidates[0][1]
             mismatch_messages.append(
-                f"{os.path.basename(source_path)} -> no gaze candidate"
+                f"{os.path.basename(source_path)} -> all safe gaze candidates already assigned "
+                f"(best was {os.path.basename(best_candidate)})"
             )
             continue
 
-        if candidate_score is None or candidate_score[0] > duration_tolerance_sec:
-            mismatch_messages.append(
-                f"{os.path.basename(source_path)} -> {os.path.basename(candidate_path)} "
-                f"(source={source_duration:.3f}s, gaze={gaze_stats[candidate_path]['duration']:.3f}s)"
-            )
-            continue
-
-        mapping[os.path.abspath(source_path)] = os.path.abspath(candidate_path)
+        assigned_gaze_paths.add(chosen_path)
+        mapping[os.path.abspath(source_path)] = os.path.abspath(chosen_path)
 
     if mismatch_messages:
         mismatch_text = "\n".join(mismatch_messages[:10])

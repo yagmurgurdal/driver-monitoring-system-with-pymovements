@@ -8,8 +8,9 @@ from pathlib import Path
 import pandas as pd
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent
-DEFAULT_WINDOW_ROOT = Path(r"D:\window")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_WINDOW_ROOT = Path(r"D:\window") if Path(r"D:\window").exists() else PROJECT_ROOT / "window_dataset"
+DEFAULT_GAZE_WINDOW_ROOT = PROJECT_ROOT / "window_dataset_with_gaze"
 DEFAULT_RESULTS_ROOT = PROJECT_ROOT / "results"
 
 
@@ -26,13 +27,12 @@ def load_metrics(path: Path) -> dict:
 
 
 def write_comparison_summary(results_root: Path):
-    baseline_dir = results_root / "random_forest_baseline"
-    high_conf_dir = results_root / "random_forest_high_confidence"
-
     rows = []
     for model_name, metrics_path in [
-        ("baseline", baseline_dir / "metrics.json"),
-        ("high_confidence", high_conf_dir / "metrics.json"),
+        ("baseline", results_root / "random_forest_baseline" / "metrics.json"),
+        ("high_confidence", results_root / "random_forest_high_confidence" / "metrics.json"),
+        ("gaze_baseline", results_root / "random_forest_gaze_baseline" / "metrics.json"),
+        ("gaze_high_confidence", results_root / "random_forest_gaze_high_confidence" / "metrics.json"),
     ]:
         if not metrics_path.exists():
             continue
@@ -79,6 +79,11 @@ def main():
         help="Root folder for model results.",
     )
     parser.add_argument(
+        "--gaze-window-root",
+        default=str(DEFAULT_GAZE_WINDOW_ROOT),
+        help="Root folder for merged window datasets with gaze features.",
+    )
+    parser.add_argument(
         "--skip-window-build",
         action="store_true",
         help="Skip rebuilding drowsiness/distraction window files.",
@@ -103,10 +108,16 @@ def main():
         action="store_true",
         help="Skip Random Forest training runs.",
     )
+    parser.add_argument(
+        "--skip-gaze-train",
+        action="store_true",
+        help="Skip Random Forest training runs on merged gaze features.",
+    )
     args = parser.parse_args()
 
     python_exe = args.python
     window_root = Path(args.window_root)
+    gaze_window_root = Path(args.gaze_window_root)
     results_root = Path(args.results_root)
     results_root.mkdir(parents=True, exist_ok=True)
 
@@ -115,7 +126,8 @@ def main():
             "Build Drowsiness/Distraction Windows",
             [
                 python_exe,
-                "build_window_dataset.py",
+                "-m",
+                "scripts.dataset.build_window_dataset",
                 "--output-root",
                 str(window_root),
                 "--summary-path",
@@ -129,7 +141,8 @@ def main():
             "Validate Drowsiness/Distraction Windows",
             [
                 python_exe,
-                "validate_window_outputs.py",
+                "-m",
+                "scripts.dataset.validate_window_outputs",
                 "--window-root",
                 str(window_root),
                 "--report-path",
@@ -143,7 +156,8 @@ def main():
             "Build Normal Windows",
             [
                 python_exe,
-                "build_normal_window_dataset.py",
+                "-m",
+                "scripts.dataset.build_normal_window_dataset",
                 "--output-root",
                 str(window_root / "normal"),
                 "--summary-path",
@@ -157,7 +171,8 @@ def main():
             "Validate Normal Windows",
             [
                 python_exe,
-                "validate_normal_window_outputs.py",
+                "-m",
+                "scripts.dataset.validate_normal_window_outputs",
                 "--window-root",
                 str(window_root / "normal"),
                 "--report-path",
@@ -171,7 +186,8 @@ def main():
             "Train Random Forest Baseline",
             [
                 python_exe,
-                "train_random_forest.py",
+                "-m",
+                "scripts.models.train_random_forest",
                 "--window-root",
                 str(window_root),
                 "--output-dir",
@@ -186,7 +202,8 @@ def main():
             "Train Random Forest High Confidence",
             [
                 python_exe,
-                "train_random_forest.py",
+                "-m",
+                "scripts.models.train_random_forest",
                 "--window-root",
                 str(window_root),
                 "--output-dir",
@@ -197,6 +214,44 @@ def main():
             ],
             PROJECT_ROOT,
         )
+
+        if not args.skip_gaze_train:
+            run_step(
+                "Train Random Forest Gaze Baseline",
+                [
+                    python_exe,
+                    "-m",
+                    "scripts.models.train_random_forest",
+                    "--window-root",
+                    str(gaze_window_root),
+                    "--output-dir",
+                    str(results_root / "random_forest_gaze_baseline"),
+                    "--n-jobs",
+                    "1",
+                    "--feature-set",
+                    "gaze",
+                ],
+                PROJECT_ROOT,
+            )
+
+            run_step(
+                "Train Random Forest Gaze High Confidence",
+                [
+                    python_exe,
+                    "-m",
+                    "scripts.models.train_random_forest",
+                    "--window-root",
+                    str(gaze_window_root),
+                    "--output-dir",
+                    str(results_root / "random_forest_gaze_high_confidence"),
+                    "--n-jobs",
+                    "1",
+                    "--feature-set",
+                    "gaze",
+                    "--use-high-confidence",
+                ],
+                PROJECT_ROOT,
+            )
 
         write_comparison_summary(results_root)
 
