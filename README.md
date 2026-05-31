@@ -99,18 +99,20 @@ This section explains every Python code file currently in the repository.
 
 #### Models and evaluation
 
-- `scripts/models/random_forest/train_random_forest.py`: trains the three-class Random Forest models for baseline and gaze-supported experiments, writes metrics, confusion matrices, feature importance tables, and `model_bundle.pkl`
-- `scripts/models/random_forest/train_rf_baseline.py`: dedicated entry script for the baseline Random Forest experiment
-- `scripts/models/random_forest/train_rf_high_confidence.py`: dedicated entry script for the high-confidence Random Forest experiment
-- `scripts/models/random_forest/train_rf_gaze_baseline.py`: dedicated entry script for the gaze-supported baseline Random Forest experiment
-- `scripts/models/random_forest/train_rf_gaze_high_confidence.py`: dedicated entry script for the gaze-supported high-confidence Random Forest experiment
+- `scripts/models/random_forest/train_random_forest.py`: shared Random Forest training backend for the four Random Forest scenarios; writes metrics, confusion matrices, feature importance tables, and `model_bundle.pkl`
+- `scripts/models/random_forest/train_rf_baseline.py`: entry script for the baseline Random Forest experiment
+- `scripts/models/random_forest/train_rf_high_confidence.py`: entry script for the high-confidence Random Forest experiment
+- `scripts/models/random_forest/train_rf_gaze_baseline.py`: entry script for the gaze-supported baseline Random Forest experiment
+- `scripts/models/random_forest/train_rf_gaze_high_confidence.py`: entry script for the gaze-supported high-confidence Random Forest experiment
 - `scripts/models/classical_models/compare_models.py`: compares multiple classical models on the same train/test split
 - `scripts/models/classical_models/compare_models_baseline.py`: dedicated entry script for baseline multi-model comparison
 - `scripts/models/classical_models/compare_models_high_confidence.py`: dedicated entry script for high-confidence multi-model comparison
 - `scripts/models/classical_models/compare_models_gaze_baseline.py`: dedicated entry script for gaze-supported multi-model comparison
 - `scripts/models/classical_models/compare_models_gaze_high_confidence.py`: dedicated entry script for gaze-supported high-confidence multi-model comparison
 - `scripts/models/classical_models/summarize_model_comparisons.py`: combines all comparison outputs into one master summary workbook
-- `scripts/models/classical_models/decision_tree`, `extra_trees`, `gradient_boosting`, `logistic_regression`, `linear_svm`, `rbf_svm`, and `xgboost`: per-model subfolders that keep each classical model definition separate
+- `scripts/models/classical_models/adaboost`, `decision_tree`, `extra_trees`, `gradient_boosting`, `knn`, `linear_svm`, `logistic_regression`, `rbf_svm`, and `xgboost`: per-model subfolders that keep each non-Random-Forest model definition separate
+- `scripts/models/classical_models/scenario_runner.py`: shared scenario execution helper used by the per-model entry scripts
+- `scripts/models/run_all_models.ps1`: PowerShell helper that runs every model across every experimental setting sequentially
 - `scripts/models/random_forest/check_accuracy.py`: recalculates accuracy from saved outputs to independently verify reported model performance
 
 #### Orchestration
@@ -179,9 +181,9 @@ The baseline model uses the following window-level features:
 
 In the gaze-supported setting, these are extended with additional `gaze_*` features generated from PyMovements-compatible iris-coordinate time series.
 
-## Current Experiment Results
+## Evaluated Model Suite
 
-Current validated results in the repository span ten evaluated models:
+The repository is not limited to Random Forest. The current comparison framework evaluates ten model families under the same four experimental settings:
 
 - `Random Forest`
 - `Extra Trees`
@@ -194,12 +196,21 @@ Current validated results in the repository span ten evaluated models:
 - `K-Nearest Neighbors`
 - `XGBoost`
 
-All models were evaluated under four experimental settings:
+Each model is tested under:
 
 - `baseline`
 - `high_confidence`
 - `gaze_baseline`
 - `gaze_high_confidence`
+
+This means the repository supports both:
+
+- single-model runs, where a specific algorithm such as Random Forest or XGBoost is trained in one scenario
+- comparative runs, where all supported algorithms are evaluated under the same scenario and then summarized together
+
+## Current Experiment Results
+
+Current validated results in the repository span all ten evaluated models across the four experimental settings described above.
 
 ### Current Best Overall Models
 
@@ -209,20 +220,20 @@ All models were evaluated under four experimental settings:
 | 2 | `Extra Trees` | `gaze_high_confidence` | `0.948605` | `0.939588` | `0.946845` |
 | 3 | `K-Nearest Neighbors` | `gaze_high_confidence` | `0.932452` | `0.918142` | `0.931709` |
 
-### Random Forest Reference Results
+### Full Comparison Tables
 
-| Random Forest Variant | Accuracy | Macro F1 | Weighted F1 |
-| --- | ---: | ---: | ---: |
-| Baseline Random Forest | `0.849193` | `0.732109` | `0.842881` |
-| High-Confidence Random Forest | `0.904070` | `0.882017` | `0.897380` |
-| Gaze Baseline Random Forest | `0.884637` | `0.720373` | `0.875808` |
-| Gaze High-Confidence Random Forest | `0.918114` | `0.927862` | `0.915445` |
+For the complete model-by-model results, use the generated comparison tables in:
+
+- `docs/report_assets/model_comparison_20260531/table_1_all_models_all_settings.xlsx`
+- `docs/report_assets/model_comparison_20260531/table_2_gaze_high_confidence_ranking.xlsx`
+
+These assets summarize all evaluated models rather than highlighting a single algorithm.
 
 ## Report Assets
 
 Report-ready figures and tables are available in [`docs/report_assets`](docs/report_assets):
 
-- legacy Random Forest-focused assets in `docs/report_assets/`
+- earlier Random Forest-specific assets in `docs/report_assets/`
 - expanded comparison assets in `docs/report_assets/model_comparison_20260531/`
 - experiment-setting architecture and flowchart diagrams in `docs/report_assets/experiment_diagrams_20260601/`
 
@@ -256,27 +267,31 @@ To run the full pipeline:
 .venv\Scripts\python.exe -m scripts.pipeline.run_project_pipeline --python .venv\Scripts\python.exe
 ```
 
-To train the baseline and high-confidence Random Forest models:
+To train only the Random Forest variants:
 
 ```powershell
 .venv\Scripts\python.exe -m scripts.models.random_forest.train_rf_baseline
 .venv\Scripts\python.exe -m scripts.models.random_forest.train_rf_high_confidence
-```
-
-To train the gaze-supported models:
-
-```powershell
 .venv\Scripts\python.exe -m scripts.models.random_forest.train_rf_gaze_baseline
 .venv\Scripts\python.exe -m scripts.models.random_forest.train_rf_gaze_high_confidence
 ```
 
-To independently verify reported accuracy:
+To train the other model families individually, use the matching per-model entry points under `scripts.models.classical_models.<model_name>`. For example:
+
+```powershell
+.venv\Scripts\python.exe -m scripts.models.classical_models.xgboost.run_baseline
+.venv\Scripts\python.exe -m scripts.models.classical_models.xgboost.run_high_confidence
+.venv\Scripts\python.exe -m scripts.models.classical_models.knn.run_gaze_baseline
+.venv\Scripts\python.exe -m scripts.models.classical_models.adaboost.run_gaze_high_confidence
+```
+
+To independently verify a saved Random Forest result:
 
 ```powershell
 .venv\Scripts\python.exe -m scripts.models.random_forest.check_accuracy --results-dir .\results\random_forest_high_confidence
 ```
 
-To run the expanded model comparison experiments:
+To run scenario-wide comparison scripts that evaluate all supported models under one setting:
 
 ```powershell
 .venv\Scripts\python.exe -m scripts.models.classical_models.compare_models_baseline
@@ -285,7 +300,7 @@ To run the expanded model comparison experiments:
 .venv\Scripts\python.exe -m scripts.models.classical_models.compare_models_gaze_high_confidence
 ```
 
-The comparison scripts currently evaluate:
+The comparison scripts currently evaluate the following model identifiers:
 
 - `random_forest`
 - `extra_trees`
@@ -298,7 +313,7 @@ The comparison scripts currently evaluate:
 - `knn`
 - `xgboost`
 
-To run all model/scenario combinations sequentially:
+To run all supported model/scenario combinations sequentially:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\models\run_all_models.ps1
@@ -306,6 +321,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\models\run_all_models.ps1
 
 Notes:
 
+- `scripts.models.random_forest.train_random_forest` is only one backend in the repository; the broader comparison framework lives under `scripts.models.classical_models`.
 - `scripts.models.random_forest.train_random_forest` uses the baseline feature set by default.
 - Gaze-merged files are expected under `window_dataset_with_gaze` as `*_windows_with_gaze.xlsx`.
 - Recent portability fixes allow repo-local dataset roots when hard-coded external paths are unavailable.
@@ -324,15 +340,17 @@ If you want to understand or rerun the repository in the intended order, the mos
 8. `scripts/gaze/build_normal_pymovements_window_features.py`
 9. `scripts/gaze/merge_window_with_gaze_features.py`
 10. `scripts/models/random_forest/train_random_forest.py`
-11. `scripts/models/classical_models/compare_models.py`
-12. `scripts/models/random_forest/check_accuracy.py`
-13. `scripts/pipeline/run_project_pipeline.py`
+11. `scripts/models/classical_models/scenario_runner.py`
+12. `scripts/models/classical_models/compare_models.py`
+13. `scripts/models/run_all_models.ps1`
+14. `scripts/models/random_forest/check_accuracy.py`
+15. `scripts/pipeline/run_project_pipeline.py`
 
 If you only want the main experiment path, focus on the `scripts/` directory first. The `dataset_preparation/` and `video açma/` folders are mainly supporting or archival code.
 
 ## Notes
 
-- The baseline and gaze-supported pipelines are both preserved in the repository.
+- The repository now preserves both the original Random Forest workflow and the expanded ten-model comparison framework.
 - Several validation and audit scripts exist because reproducibility and dataset consistency were treated as part of the project itself, not as optional cleanup work.
 
 ## License
