@@ -10,7 +10,7 @@ NORMAL_ROOT_DEFAULT = os.path.join(os.getcwd(), "csvcleaned", "normal")
 OUTPUT_ROOT_DEFAULT = (
     r"D:\window\normal" if os.path.exists(r"D:\window") else os.path.join(os.getcwd(), "window_dataset", "normal")
 )
-SUMMARY_PATH_DEFAULT = os.path.join(os.getcwd(), "normal_window_dataset_summary.xlsx")
+SUMMARY_PATH_DEFAULT = os.path.join(os.getcwd(), "reports", "dataset", "normal_window_dataset_summary.xlsx")
 
 WINDOW_SIZE = 90
 LABEL = "normal"
@@ -236,6 +236,9 @@ def build_normal_windows(normal_root: str, output_root: str, summary_path: str, 
 
     dataset_df = pd.DataFrame(all_rows)
     summary_df = build_summary(dataset_df)
+    summary_dir = os.path.dirname(summary_path)
+    if summary_dir:
+        os.makedirs(summary_dir, exist_ok=True)
     summary_df.to_excel(summary_path, index=False)
 
     if errors:

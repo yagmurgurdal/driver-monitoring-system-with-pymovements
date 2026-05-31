@@ -1,10 +1,10 @@
 import argparse
 from pathlib import Path
 
-from scripts.models.train_random_forest import run_training
+from scripts.models.random_forest.train_random_forest import run_training
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 
 def main():

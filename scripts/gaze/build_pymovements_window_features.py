@@ -11,7 +11,7 @@ import pymovements as pm
 
 INPUT_ROOT_DEFAULT = os.path.join(os.getcwd(), "pymovements_input")
 OUTPUT_ROOT_DEFAULT = os.path.join(os.getcwd(), "pymovements_window_dataset")
-SUMMARY_PATH_DEFAULT = os.path.join(os.getcwd(), "pymovements_window_summary.xlsx")
+SUMMARY_PATH_DEFAULT = os.path.join(os.getcwd(), "reports", "gaze", "pymovements_window_summary.xlsx")
 
 REQUIRED_COLUMNS = [
     "frame",
@@ -443,6 +443,9 @@ def build_dataset(input_root: str, output_root: str, summary_path: str, config: 
 
     if summary_rows:
         summary_df = pd.DataFrame(summary_rows)
+        summary_dir = os.path.dirname(summary_path)
+        if summary_dir:
+            os.makedirs(summary_dir, exist_ok=True)
         summary_df.to_excel(summary_path, index=False)
         print(f"Summary written to: {summary_path}")
 

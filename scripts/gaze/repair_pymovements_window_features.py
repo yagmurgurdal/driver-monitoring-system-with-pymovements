@@ -8,7 +8,7 @@ import pandas as pd
 from scripts.gaze import build_pymovements_window_features as window_builder
 
 
-REPORT_PATH_DEFAULT = os.path.join(os.getcwd(), "pymovements_window_repair_report.xlsx")
+REPORT_PATH_DEFAULT = os.path.join(os.getcwd(), "reports", "gaze", "repair", "pymovements_window_repair_report.xlsx")
 
 
 def expected_window_count_from_csv(csv_path: str, config: window_builder.WindowConfig) -> int:
@@ -143,6 +143,9 @@ def write_report(
     repaired_rows: List[Dict],
     config: window_builder.WindowConfig,
 ):
+    report_dir = os.path.dirname(report_path)
+    if report_dir:
+        os.makedirs(report_dir, exist_ok=True)
     with pd.ExcelWriter(report_path) as writer:
         pd.DataFrame(audit_rows).to_excel(writer, sheet_name="audit", index=False)
         if repaired_rows:

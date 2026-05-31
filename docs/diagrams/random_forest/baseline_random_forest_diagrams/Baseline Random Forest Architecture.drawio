@@ -1,0 +1,55 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Sayfa-1" id="GhTA9uNlbYGO6sdUs3K6">
+    <mxGraphModel dx="2358" dy="2438" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1;" value="Input Root&#xa;window_dataset/" vertex="1">
+          <mxGeometry height="80" width="180" x="280" y="-470" as="geometry" />
+        </mxCell>
+        <mxCell id="3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;" value="Window Files&#xa;normal / drowsiness / distraction&#xa;*_windows.xlsx" vertex="1">
+          <mxGeometry height="80" width="220" x="260" y="-340" as="geometry" />
+        </mxCell>
+        <mxCell id="4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;" value="load_dataset()&#xa;Read Excel files&#xa;Create group_id = modality::file_stem" vertex="1">
+          <mxGeometry height="80" width="240" x="250" y="-210" as="geometry" />
+        </mxCell>
+        <mxCell id="5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=13;" value="filter_dataset()&#xa;Keep only is_usable = 1&#xa;Drop NA on feature columns" vertex="1">
+          <mxGeometry height="80" width="240" x="250" y="-90" as="geometry" />
+        </mxCell>
+        <mxCell id="6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;" value="Baseline Feature Matrix X&#xa;perclos, perclos_percent&#xa;mean_ear, std_ear, min_ear, max_ear&#xa;mean_abs_yaw, std_yaw, max_abs_yaw&#xa;mean_abs_pitch, std_pitch, max_abs_pitch&#xa;mean_abs_roll, std_roll, max_abs_roll&#xa;face_detect_ratio, pose_valid_ratio, ear_valid_ratio" vertex="1">
+          <mxGeometry height="200" width="280" x="520" y="-150" as="geometry" />
+        </mxCell>
+        <mxCell id="7" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=13;" value="build_split()&#xa;StratifiedGroupKFold&#xa;or group-aware fallback split" vertex="1">
+          <mxGeometry height="80" width="220" x="850" y="-90" as="geometry" />
+        </mxCell>
+        <mxCell id="8" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;fontStyle=1;" value="RandomForestClassifier&#xa;n_estimators=300&#xa;class_weight=balanced_subsample&#xa;random_state=42" vertex="1">
+          <mxGeometry height="80" width="220" x="1120" y="-90" as="geometry" />
+        </mxCell>
+        <mxCell id="9" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;" value="Outputs&#xa;metrics.json&#xa;classification_report.json&#xa;confusion_matrix.xlsx&#xa;feature_importance.xlsx&#xa;test_predictions.xlsx&#xa;model_bundle.pkl" vertex="1">
+          <mxGeometry height="160" width="240" x="1380" y="-130" as="geometry" />
+        </mxCell>
+        <mxCell id="20" edge="1" parent="1" source="2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" target="3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="21" edge="1" parent="1" source="3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" target="4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="22" edge="1" parent="1" source="4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" target="5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="23" edge="1" parent="1" source="5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" target="6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="24" edge="1" parent="1" source="6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" target="7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="25" edge="1" parent="1" source="7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" target="8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="26" edge="1" parent="1" source="8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" target="9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

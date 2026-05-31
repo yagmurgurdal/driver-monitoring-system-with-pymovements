@@ -13,7 +13,7 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 from sklearn.model_selection import StratifiedGroupKFold
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 WINDOW_ROOT_DEFAULT = str(
     Path(r"D:\window") if os.path.exists(r"D:\window") else PROJECT_ROOT / "window_dataset"
 )
@@ -424,10 +424,6 @@ def main():
         feature_set=args.feature_set,
         use_high_confidence=args.use_high_confidence,
     )
-    print("\nConfusion Matrix:")
-    print(confusion_df.to_string())
-    print("\nTop Feature Importances:")
-    print(feature_importance_df.head(10).to_string(index=False))
 
 
 if __name__ == "__main__":

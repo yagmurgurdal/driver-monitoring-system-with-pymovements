@@ -12,7 +12,7 @@ NORMAL_ROOT_DEFAULT = os.path.join(os.getcwd(), "csvcleaned", "normal")
 CSVCLEANED_ROOT_DEFAULT = os.path.join(os.getcwd(), "csvcleaned")
 PYMOVEMENTS_INPUT_ROOT_DEFAULT = os.path.join(os.getcwd(), "pymovements_input")
 OUTPUT_ROOT_DEFAULT = os.path.join(PYMOVEMENTS_INPUT_ROOT_DEFAULT, "normal")
-REPORT_PATH_DEFAULT = os.path.join(os.getcwd(), "normal_pymovements_input_summary.xlsx")
+REPORT_PATH_DEFAULT = os.path.join(os.getcwd(), "reports", "gaze", "normal_pymovements_input_summary.xlsx")
 
 
 PYMOVEMENTS_COLUMNS = [
@@ -391,6 +391,9 @@ def main():
             print(f"  [ERROR] {exc}")
 
     if summary_rows:
+        report_dir = os.path.dirname(args.report_path)
+        if report_dir:
+            os.makedirs(report_dir, exist_ok=True)
         pd.DataFrame(summary_rows).to_excel(args.report_path, index=False)
         print(f"Summary written to: {args.report_path}")
 

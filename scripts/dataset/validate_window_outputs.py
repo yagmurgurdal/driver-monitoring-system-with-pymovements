@@ -11,7 +11,7 @@ PERCLOS_ROOT_DEFAULT = os.path.join(os.getcwd(), "perclos")
 WINDOW_ROOT_DEFAULT = (
     r"D:\window" if os.path.exists(r"D:\window") else os.path.join(os.getcwd(), "window_dataset")
 )
-REPORT_PATH_DEFAULT = os.path.join(os.getcwd(), "window_validation_report.xlsx")
+REPORT_PATH_DEFAULT = os.path.join(os.getcwd(), "reports", "dataset", "window_validation_report.xlsx")
 
 LABELS = ("drowsiness", "distraction")
 MODALITIES = ("IR", "RGB")
@@ -291,6 +291,9 @@ def collect_window_files(window_root: str) -> List[str]:
 
 
 def write_report(rows: List[Dict], report_path: str):
+    report_dir = os.path.dirname(report_path)
+    if report_dir:
+        os.makedirs(report_dir, exist_ok=True)
     pd.DataFrame(rows).to_excel(report_path, index=False)
 
 

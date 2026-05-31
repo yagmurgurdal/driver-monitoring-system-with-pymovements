@@ -21,7 +21,7 @@ from scripts.gaze.extract_pymovements_inputs import (
 )
 
 
-REPORT_PATH_DEFAULT = os.path.join(os.getcwd(), "pymovements_input_repair_report.xlsx")
+REPORT_PATH_DEFAULT = os.path.join(os.getcwd(), "reports", "gaze", "repair", "pymovements_input_repair_report.xlsx")
 
 
 def classify_output(output_path: str, expected_rows: int) -> Tuple[str, int]:
@@ -126,6 +126,9 @@ def repair_group(
 
 
 def write_report(report_path: str, audit_rows: List[Dict], repaired_rows: List[Dict], config: ExtractionConfig):
+    report_dir = os.path.dirname(report_path)
+    if report_dir:
+        os.makedirs(report_dir, exist_ok=True)
     with pd.ExcelWriter(report_path) as writer:
         pd.DataFrame(audit_rows).to_excel(writer, sheet_name="audit", index=False)
         if repaired_rows:

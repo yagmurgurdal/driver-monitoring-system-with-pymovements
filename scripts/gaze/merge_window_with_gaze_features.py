@@ -14,7 +14,7 @@ GAZE_WINDOW_ROOT_DEFAULT = os.path.join(os.getcwd(), "pymovements_window_dataset
 NORMAL_GAZE_WINDOW_ROOT_DEFAULT = os.path.join(os.getcwd(), "pymovements_window_dataset_normal")
 BASELINE_WINDOW_ROOT_DEFAULT = r"D:\window" if os.path.exists(r"D:\window") else os.path.join(os.getcwd(), "window_dataset")
 OUTPUT_ROOT_DEFAULT = os.path.join(os.getcwd(), "window_dataset_with_gaze")
-SUMMARY_PATH_DEFAULT = os.path.join(os.getcwd(), "window_dataset_with_gaze_summary.xlsx")
+SUMMARY_PATH_DEFAULT = os.path.join(os.getcwd(), "reports", "gaze", "window_dataset_with_gaze_summary.xlsx")
 
 LABELS = ("distraction", "drowsiness")
 MODALITIES = ("IR", "RGB")
@@ -202,6 +202,9 @@ def build_merged_dataset(
                 print(f"  [ERROR] {exc}")
 
     if summary_rows:
+        summary_dir = os.path.dirname(summary_path)
+        if summary_dir:
+            os.makedirs(summary_dir, exist_ok=True)
         pd.DataFrame(summary_rows).to_excel(summary_path, index=False)
         print(f"Summary written to: {summary_path}")
 

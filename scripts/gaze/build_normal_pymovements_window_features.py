@@ -17,7 +17,7 @@ from scripts.gaze.build_pymovements_window_features import (
 
 INPUT_ROOT_DEFAULT = os.path.join(os.getcwd(), "pymovements_input", "normal")
 OUTPUT_ROOT_DEFAULT = os.path.join(os.getcwd(), "pymovements_window_dataset_normal")
-SUMMARY_PATH_DEFAULT = os.path.join(os.getcwd(), "normal_pymovements_window_summary_aligned.xlsx")
+SUMMARY_PATH_DEFAULT = os.path.join(os.getcwd(), "reports", "gaze", "normal_pymovements_window_summary_aligned.xlsx")
 WINDOW_SIZE = 90
 
 
@@ -152,6 +152,9 @@ def build_dataset(input_root: str, output_root: str, summary_path: str, config: 
             print(f"  [ERROR] {exc}")
 
     if summary_rows:
+        summary_dir = os.path.dirname(summary_path)
+        if summary_dir:
+            os.makedirs(summary_dir, exist_ok=True)
         pd.DataFrame(summary_rows).to_excel(summary_path, index=False)
         print(f"Summary written to: {summary_path}")
 

@@ -12,6 +12,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_WINDOW_ROOT = Path(r"D:\window") if Path(r"D:\window").exists() else PROJECT_ROOT / "window_dataset"
 DEFAULT_GAZE_WINDOW_ROOT = PROJECT_ROOT / "window_dataset_with_gaze"
 DEFAULT_RESULTS_ROOT = PROJECT_ROOT / "results"
+DEFAULT_DATASET_REPORTS_ROOT = PROJECT_ROOT / "reports" / "dataset"
 
 
 def run_step(title: str, command: list[str], cwd: Path):
@@ -113,6 +114,11 @@ def main():
         action="store_true",
         help="Skip Random Forest training runs on merged gaze features.",
     )
+    parser.add_argument(
+        "--run-model-comparison",
+        action="store_true",
+        help="Run extended multi-model comparison experiments after Random Forest training.",
+    )
     args = parser.parse_args()
 
     python_exe = args.python
@@ -131,7 +137,7 @@ def main():
                 "--output-root",
                 str(window_root),
                 "--summary-path",
-                str(PROJECT_ROOT / "window_dataset_summary.xlsx"),
+                str(DEFAULT_DATASET_REPORTS_ROOT / "window_dataset_summary.xlsx"),
             ],
             PROJECT_ROOT,
         )
@@ -146,7 +152,7 @@ def main():
                 "--window-root",
                 str(window_root),
                 "--report-path",
-                str(PROJECT_ROOT / "window_validation_report.xlsx"),
+                str(DEFAULT_DATASET_REPORTS_ROOT / "window_validation_report.xlsx"),
             ],
             PROJECT_ROOT,
         )
@@ -161,7 +167,7 @@ def main():
                 "--output-root",
                 str(window_root / "normal"),
                 "--summary-path",
-                str(PROJECT_ROOT / "normal_window_dataset_summary.xlsx"),
+                str(DEFAULT_DATASET_REPORTS_ROOT / "normal_window_dataset_summary.xlsx"),
             ],
             PROJECT_ROOT,
         )
@@ -176,7 +182,7 @@ def main():
                 "--window-root",
                 str(window_root / "normal"),
                 "--report-path",
-                str(PROJECT_ROOT / "normal_window_validation_report.xlsx"),
+                str(DEFAULT_DATASET_REPORTS_ROOT / "normal_window_validation_report.xlsx"),
             ],
             PROJECT_ROOT,
         )
@@ -187,7 +193,7 @@ def main():
             [
                 python_exe,
                 "-m",
-                "scripts.models.train_random_forest",
+                "scripts.models.random_forest.train_random_forest",
                 "--window-root",
                 str(window_root),
                 "--output-dir",
@@ -203,7 +209,7 @@ def main():
             [
                 python_exe,
                 "-m",
-                "scripts.models.train_random_forest",
+                "scripts.models.random_forest.train_random_forest",
                 "--window-root",
                 str(window_root),
                 "--output-dir",
@@ -221,7 +227,7 @@ def main():
                 [
                     python_exe,
                     "-m",
-                    "scripts.models.train_random_forest",
+                    "scripts.models.random_forest.train_random_forest",
                     "--window-root",
                     str(gaze_window_root),
                     "--output-dir",
@@ -239,7 +245,7 @@ def main():
                 [
                     python_exe,
                     "-m",
-                    "scripts.models.train_random_forest",
+                    "scripts.models.random_forest.train_random_forest",
                     "--window-root",
                     str(gaze_window_root),
                     "--output-dir",
@@ -252,6 +258,48 @@ def main():
                 ],
                 PROJECT_ROOT,
             )
+
+        if args.run_model_comparison:
+            run_step(
+                "Compare Baseline Models",
+                [
+                    python_exe,
+                    "-m",
+                    "scripts.models.classical_models.compare_models_baseline",
+                ],
+                PROJECT_ROOT,
+            )
+
+            run_step(
+                "Compare High-Confidence Models",
+                [
+                    python_exe,
+                    "-m",
+                    "scripts.models.classical_models.compare_models_high_confidence",
+                ],
+                PROJECT_ROOT,
+            )
+
+            if not args.skip_gaze_train:
+                run_step(
+                    "Compare Gaze Baseline Models",
+                    [
+                        python_exe,
+                        "-m",
+                        "scripts.models.classical_models.compare_models_gaze_baseline",
+                    ],
+                    PROJECT_ROOT,
+                )
+
+                run_step(
+                    "Compare Gaze High-Confidence Models",
+                    [
+                        python_exe,
+                        "-m",
+                        "scripts.models.classical_models.compare_models_gaze_high_confidence",
+                    ],
+                    PROJECT_ROOT,
+                )
 
         write_comparison_summary(results_root)
 

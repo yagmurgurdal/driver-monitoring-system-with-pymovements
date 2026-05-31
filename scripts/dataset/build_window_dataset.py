@@ -9,7 +9,7 @@ import pandas as pd
 CSV_ROOT_DEFAULT = os.path.join(os.getcwd(), "csvcleaned")
 PERCLOS_ROOT_DEFAULT = os.path.join(os.getcwd(), "perclos")
 OUTPUT_ROOT_DEFAULT = os.path.join(os.getcwd(), "window_dataset")
-SUMMARY_PATH_DEFAULT = os.path.join(os.getcwd(), "window_dataset_summary.xlsx")
+SUMMARY_PATH_DEFAULT = os.path.join(os.getcwd(), "reports", "dataset", "window_dataset_summary.xlsx")
 
 LABELS = ("drowsiness", "distraction")
 MODALITIES = ("IR", "RGB")
@@ -349,6 +349,9 @@ def build_window_dataset(
     summary_df = build_summary(dataset_df)
 
     os.makedirs(output_root, exist_ok=True)
+    summary_dir = os.path.dirname(summary_path)
+    if summary_dir:
+        os.makedirs(summary_dir, exist_ok=True)
     summary_df.to_excel(summary_path, index=False)
 
     if error_rows:
