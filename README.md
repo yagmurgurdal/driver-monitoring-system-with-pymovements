@@ -6,7 +6,7 @@ This repository contains an end-to-end driver state classification workflow buil
 - `drowsiness`
 - `distraction`
 
-The project goes beyond a single model-training script. It includes dataset preparation, validation utilities, gaze-feature extraction, baseline and gaze-supported Random Forest experiments, result verification, and report-ready comparison assets.
+The project goes beyond a single model-training script. It includes dataset preparation, validation utilities, gaze-feature extraction, four experimental settings, multi-model comparison, result verification, and report-ready tables, charts, and diagrams for the thesis/report.
 
 ## Project Goal
 
@@ -20,19 +20,25 @@ The repository follows a staged workflow:
 2. Frame-level signals are converted into window-based behavioral features.
 3. A rule-based normal class is derived from safe driving segments.
 4. Generated windows are validated against source signals.
-5. Random Forest models are trained on baseline features.
-6. Iris center coordinates are extracted to build PyMovements-compatible gaze inputs.
-7. Gaze features are generated and merged with the baseline window dataset.
-8. Gaze-supported Random Forest experiments are trained and evaluated.
-9. Model outputs are summarized through metrics, confusion matrices, feature importance tables, and report visuals.
+5. Multiple model families are trained under the baseline setting.
+6. High-confidence sample selection is applied as a second experimental setting.
+7. Iris center coordinates are extracted to build PyMovements-compatible gaze inputs.
+8. Gaze features are generated and merged with the baseline window dataset.
+9. Gaze baseline and gaze high-confidence experiments are trained and evaluated.
+10. Model outputs are summarized through metrics, confusion matrices, feature importance tables, comparison charts, and report visuals.
 
 ## Repository Structure
 
 The repository is organized into a small number of code areas:
 
+- `assets/models/`: local model assets such as MediaPipe-compatible `.tflite` files
+- `reports/`: generated Excel summaries, validation reports, repair audits, and test report variants
+- `docs/forms/`: project application and proposal documents
+- `docs/thesis/`: thesis or report draft documents
+- `docs/diagrams/`: Draw.io flowcharts and system diagrams
 - `scripts/`: main project code used for dataset building, gaze processing, training, evaluation, and orchestration
 - `dataset_preparation/`: earlier preparation and experimentation scripts kept for reference
-- `docs/report_assets/`: report figure generation
+- `docs/report_assets/`: report figure generation, model-comparison charts, and experiment diagrams
 - `video açma/`: older video access and debugging helpers kept as archival utilities
 
 Within `scripts/`, the folders have clear roles:
@@ -43,6 +49,19 @@ Within `scripts/`, the folders have clear roles:
 - `scripts/pipeline`: end-to-end orchestration
 - `scripts/utils`: shared helper modules
 - `scripts/legacy`: older exploratory scripts kept for reference
+
+## Organized Artifacts
+
+To keep the repository root cleaner, non-code files are grouped by purpose:
+
+- `docs/forms/`: administrative application forms such as `2209-A_arastirma_onerisi_formu.docx` and `Bitirme_Projesi_Başvuru_Formu.docx`
+- `docs/thesis/`: thesis or report draft documents such as `PyMovements-Supported Driver Risk Analysis (11).docx`
+- `docs/diagrams/`: editable Draw.io diagrams such as `akış_şeması.drawio` and `sistem_akis_semasi.drawio`
+- `assets/models/`: reusable binary model assets such as `blaze_face_short_range.tflite`
+- `reports/dataset/`: baseline window dataset exports, summaries, and validation reports
+- `reports/gaze/`: PyMovements and merged-gaze summary workbooks
+- `reports/gaze/repair/`: missingness and repair audit reports
+- `reports/gaze/tests/`: smaller or temporary test-run report files
 
 ## Code Map
 
@@ -80,12 +99,19 @@ This section explains every Python code file currently in the repository.
 
 #### Models and evaluation
 
-- `scripts/models/train_random_forest.py`: trains the three-class Random Forest models for baseline and gaze-supported experiments, writes metrics, confusion matrices, feature importance tables, and `model_bundle.pkl`
-- `scripts/models/train_rf_baseline.py`: dedicated entry script for the baseline Random Forest experiment
-- `scripts/models/train_rf_high_confidence.py`: dedicated entry script for the high-confidence Random Forest experiment
-- `scripts/models/train_rf_gaze_baseline.py`: dedicated entry script for the gaze-supported baseline Random Forest experiment
-- `scripts/models/train_rf_gaze_high_confidence.py`: dedicated entry script for the gaze-supported high-confidence Random Forest experiment
-- `scripts/models/check_accuracy.py`: recalculates accuracy from saved outputs to independently verify reported model performance
+- `scripts/models/random_forest/train_random_forest.py`: trains the three-class Random Forest models for baseline and gaze-supported experiments, writes metrics, confusion matrices, feature importance tables, and `model_bundle.pkl`
+- `scripts/models/random_forest/train_rf_baseline.py`: dedicated entry script for the baseline Random Forest experiment
+- `scripts/models/random_forest/train_rf_high_confidence.py`: dedicated entry script for the high-confidence Random Forest experiment
+- `scripts/models/random_forest/train_rf_gaze_baseline.py`: dedicated entry script for the gaze-supported baseline Random Forest experiment
+- `scripts/models/random_forest/train_rf_gaze_high_confidence.py`: dedicated entry script for the gaze-supported high-confidence Random Forest experiment
+- `scripts/models/classical_models/compare_models.py`: compares multiple classical models on the same train/test split
+- `scripts/models/classical_models/compare_models_baseline.py`: dedicated entry script for baseline multi-model comparison
+- `scripts/models/classical_models/compare_models_high_confidence.py`: dedicated entry script for high-confidence multi-model comparison
+- `scripts/models/classical_models/compare_models_gaze_baseline.py`: dedicated entry script for gaze-supported multi-model comparison
+- `scripts/models/classical_models/compare_models_gaze_high_confidence.py`: dedicated entry script for gaze-supported high-confidence multi-model comparison
+- `scripts/models/classical_models/summarize_model_comparisons.py`: combines all comparison outputs into one master summary workbook
+- `scripts/models/classical_models/decision_tree`, `extra_trees`, `gradient_boosting`, `logistic_regression`, `linear_svm`, `rbf_svm`, and `xgboost`: per-model subfolders that keep each classical model definition separate
+- `scripts/models/random_forest/check_accuracy.py`: recalculates accuracy from saved outputs to independently verify reported model performance
 
 #### Orchestration
 
@@ -115,7 +141,9 @@ These scripts are mostly exploratory or early-stage preprocessing tools. They ar
 
 ### `docs/report_assets/`
 
-- `docs/report_assets/generate_report_assets.py`: regenerates the report figures such as model comparison charts, confusion matrices, and feature importance visuals
+- `docs/report_assets/generate_report_assets.py`: regenerates the original Random Forest-focused report figures
+- `docs/report_assets/generate_model_comparison_assets.py`: generates expanded comparison tables and figures for all evaluated models
+- `docs/report_assets/generate_experiment_diagrams.py`: generates architecture and flowchart figures for the four experimental settings
 
 ### `video açma/`
 
@@ -153,31 +181,71 @@ In the gaze-supported setting, these are extended with additional `gaze_*` featu
 
 ## Current Experiment Results
 
-Current validated results in the repository:
+Current validated results in the repository span ten evaluated models:
 
-| Model Variant | Accuracy | Macro F1 | Weighted F1 |
+- `Random Forest`
+- `Extra Trees`
+- `Gradient Boosting`
+- `Decision Tree`
+- `AdaBoost`
+- `Logistic Regression`
+- `Linear SVM`
+- `RBF SVM`
+- `K-Nearest Neighbors`
+- `XGBoost`
+
+All models were evaluated under four experimental settings:
+
+- `baseline`
+- `high_confidence`
+- `gaze_baseline`
+- `gaze_high_confidence`
+
+### Current Best Overall Models
+
+| Rank | Model | Setting | Accuracy | Macro F1 | Weighted F1 |
+| --- | --- | --- | ---: | ---: | ---: |
+| 1 | `XGBoost` | `gaze_high_confidence` | `0.953010` | `0.946324` | `0.952137` |
+| 2 | `Extra Trees` | `gaze_high_confidence` | `0.948605` | `0.939588` | `0.946845` |
+| 3 | `K-Nearest Neighbors` | `gaze_high_confidence` | `0.932452` | `0.918142` | `0.931709` |
+
+### Random Forest Reference Results
+
+| Random Forest Variant | Accuracy | Macro F1 | Weighted F1 |
 | --- | ---: | ---: | ---: |
 | Baseline Random Forest | `0.849193` | `0.732109` | `0.842881` |
 | High-Confidence Random Forest | `0.904070` | `0.882017` | `0.897380` |
 | Gaze Baseline Random Forest | `0.884637` | `0.720373` | `0.875808` |
 | Gaze High-Confidence Random Forest | `0.918114` | `0.927862` | `0.915445` |
 
-The best current result is the gaze-supported high-confidence model.
-
 ## Report Assets
 
-Report-ready figures are available in [`docs/report_assets`](docs/report_assets):
+Report-ready figures and tables are available in [`docs/report_assets`](docs/report_assets):
 
-- `model_comparison.png`
-- `system_pipeline.png`
-- `best_model_confusion_matrix.png`
-- `best_model_feature_importance_top25.png`
-- `best_model_feature_importance_gaze_only.png`
+- legacy Random Forest-focused assets in `docs/report_assets/`
+- expanded comparison assets in `docs/report_assets/model_comparison_20260531/`
+- experiment-setting architecture and flowchart diagrams in `docs/report_assets/experiment_diagrams_20260601/`
+
+The expanded comparison package includes:
+
+- `table_1_all_models_all_settings.png`
+- `table_2_gaze_high_confidence_ranking.png`
+- `figure_1_grouped_accuracy.png`
+- `figure_2_baseline_ranking.png`
+- `figure_3_high_confidence_ranking.png`
+- `figure_4_gaze_baseline_ranking.png`
+- `figure_5_gaze_high_confidence_ranking.png`
+- `figure_6_xgboost_confusion_matrix.png`
+- `figure_7_top3_confusion_matrices.png`
+- `figure_8_xgboost_feature_importance.png`
+- `within_model_figures/*.png`
 
 These assets can be regenerated with:
 
 ```powershell
 .venv\Scripts\python.exe docs\report_assets\generate_report_assets.py
+.venv\Scripts\python.exe docs\report_assets\generate_model_comparison_assets.py
+.venv\Scripts\python.exe docs\report_assets\generate_experiment_diagrams.py
 ```
 
 ## Running the Pipeline
@@ -191,26 +259,54 @@ To run the full pipeline:
 To train the baseline and high-confidence Random Forest models:
 
 ```powershell
-.venv\Scripts\python.exe -m scripts.models.train_rf_baseline
-.venv\Scripts\python.exe -m scripts.models.train_rf_high_confidence
+.venv\Scripts\python.exe -m scripts.models.random_forest.train_rf_baseline
+.venv\Scripts\python.exe -m scripts.models.random_forest.train_rf_high_confidence
 ```
 
 To train the gaze-supported models:
 
 ```powershell
-.venv\Scripts\python.exe -m scripts.models.train_rf_gaze_baseline
-.venv\Scripts\python.exe -m scripts.models.train_rf_gaze_high_confidence
+.venv\Scripts\python.exe -m scripts.models.random_forest.train_rf_gaze_baseline
+.venv\Scripts\python.exe -m scripts.models.random_forest.train_rf_gaze_high_confidence
 ```
 
 To independently verify reported accuracy:
 
 ```powershell
-.venv\Scripts\python.exe -m scripts.models.check_accuracy --results-dir .\results\random_forest_high_confidence
+.venv\Scripts\python.exe -m scripts.models.random_forest.check_accuracy --results-dir .\results\random_forest_high_confidence
+```
+
+To run the expanded model comparison experiments:
+
+```powershell
+.venv\Scripts\python.exe -m scripts.models.classical_models.compare_models_baseline
+.venv\Scripts\python.exe -m scripts.models.classical_models.compare_models_high_confidence
+.venv\Scripts\python.exe -m scripts.models.classical_models.compare_models_gaze_baseline
+.venv\Scripts\python.exe -m scripts.models.classical_models.compare_models_gaze_high_confidence
+```
+
+The comparison scripts currently evaluate:
+
+- `random_forest`
+- `extra_trees`
+- `gradient_boosting`
+- `decision_tree`
+- `adaboost`
+- `logistic_regression`
+- `linear_svm`
+- `rbf_svm`
+- `knn`
+- `xgboost`
+
+To run all model/scenario combinations sequentially:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\models\run_all_models.ps1
 ```
 
 Notes:
 
-- `scripts.models.train_random_forest` uses the baseline feature set by default.
+- `scripts.models.random_forest.train_random_forest` uses the baseline feature set by default.
 - Gaze-merged files are expected under `window_dataset_with_gaze` as `*_windows_with_gaze.xlsx`.
 - Recent portability fixes allow repo-local dataset roots when hard-coded external paths are unavailable.
 
@@ -227,9 +323,10 @@ If you want to understand or rerun the repository in the intended order, the mos
 7. `scripts/gaze/build_normal_pymovements_inputs.py`
 8. `scripts/gaze/build_normal_pymovements_window_features.py`
 9. `scripts/gaze/merge_window_with_gaze_features.py`
-10. `scripts/models/train_random_forest.py`
-11. `scripts/models/check_accuracy.py`
-12. `scripts/pipeline/run_project_pipeline.py`
+10. `scripts/models/random_forest/train_random_forest.py`
+11. `scripts/models/classical_models/compare_models.py`
+12. `scripts/models/random_forest/check_accuracy.py`
+13. `scripts/pipeline/run_project_pipeline.py`
 
 If you only want the main experiment path, focus on the `scripts/` directory first. The `dataset_preparation/` and `video açma/` folders are mainly supporting or archival code.
 
