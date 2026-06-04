@@ -8,9 +8,50 @@ This repository contains an end-to-end driver state classification workflow buil
 
 The project goes beyond a single model-training script. It includes dataset preparation, validation utilities, gaze-feature extraction, four experimental settings, multi-model comparison, result verification, and report-ready tables, charts, and diagrams for the thesis/report.
 
+## Web App Summary
+
+The repository also includes a product-facing Streamlit application for analyzing an uploaded driver video and returning:
+
+- overall class prediction
+- confidence and risk score
+- window-level prediction timeline
+- quality metrics for face, pose, and EAR extraction
+- SQLite-backed saved analysis records
+
+The app uses the current best validated model by default:
+
+- model family: `XGBoost`
+- setting: `gaze_high_confidence`
+- validated accuracy: `0.953010`
+
+To make the app faster than the original research pipeline, the product layer uses a **single MediaPipe pass** for both baseline and gaze-related extraction. The research/training scripts under `scripts/` remain separate and unchanged.
+
 ## Project Goal
 
 The main goal is to build a reproducible pipeline that transforms raw or semi-processed driver videos into structured window-level features for classification, then compare feature sets and training strategies on the same three-class task.
+
+## Quick Start
+
+1. Create or activate a virtual environment.
+2. Install the Python dependencies:
+
+```powershell
+pip install -r requirements.txt
+```
+
+3. Launch the app:
+
+```powershell
+.venv\Scripts\python.exe -m streamlit run app/streamlit_app.py
+```
+
+Or use the helper script:
+
+```powershell
+.\run_driver_state_app.ps1
+```
+
+4. Open [http://localhost:8501](http://localhost:8501) in the browser.
 
 ## Pipeline Overview
 
@@ -262,34 +303,43 @@ These assets can be regenerated with:
 .venv\Scripts\python.exe docs\report_assets\generate_top4_model_architecture_xml.py
 ```
 
-## Running the Pipeline
-
 ## Running The Web App
 
-The repository now includes a Streamlit MVP for uploading a driver video and receiving:
+The Streamlit app lives under `app/`:
 
-- overall class prediction
-- confidence and risk score
-- window-level timeline
-- exported frame and window prediction files
-- SQLite-backed persisted analysis records
+- `app/streamlit_app.py`: UI layer
+- `app/inference.py`: product-side inference pipeline
+- `app/unified_extractor.py`: single-pass MediaPipe extractor
+- `app/database.py`: SQLite persistence layer
 
-The default app model is the current best validated model in the repository:
+The app supports two product presets:
 
-- `XGBoost`
-- setting: `gaze_high_confidence`
+- `Hizli Analiz`: uses `xgboost_baseline`, clips the input to the first 30 seconds, and is intended for quick demos
+- `Tam Analiz`: uses `xgboost_gaze_high_confidence` on the full video for the strongest prediction quality
 
-Run it with the project virtual environment:
+Runtime artifacts are written to:
 
-```powershell
-.venv\Scripts\python.exe -m streamlit run app/streamlit_app.py
-```
+- `app_runtime/uploads/`: uploaded videos
+- `app_runtime/analyses/`: exported summaries and window-level prediction files
+- `database/driver_state_app.sqlite3`: persisted analysis records
 
-The web app stores final analysis results in:
+Saved database rows include:
 
-- `database/driver_state_app.sqlite3`
+- source video name
+- predicted class
+- confidence
+- risk score
+- source label/modality
+- quality metrics
+- window-level predictions
 
-This database keeps the analysis summary plus window-level prediction rows for each run.
+Notes:
+
+- Uploaded filenames are sanitized for Windows compatibility before saving.
+- Runtime outputs and local database files are intentionally ignored by Git.
+- Secrets such as `.env`, `.env.*`, and `.env.txt` are ignored by Git.
+
+## Running the Pipeline
 
 To run the full pipeline:
 
