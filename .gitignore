@@ -2,8 +2,15 @@
 .venv312/
 github_upload_clean/
 __pycache__/
+app/__pycache__/
 *.py[cod]
 *.pyd
+.env
+.env.*
+.env.txt
+app_runtime/
+database/
+*.sqlite3
 
 # Generated datasets and reports
 csvcleaned/

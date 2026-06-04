@@ -6,3 +6,4 @@ mediapipe
 opencv-python
 pymovements
 xgboost
+streamlit

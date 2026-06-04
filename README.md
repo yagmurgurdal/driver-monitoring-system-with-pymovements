@@ -219,6 +219,7 @@ Current validated results in the repository span all ten evaluated models across
 | 1 | `XGBoost` | `gaze_high_confidence` | `0.953010` | `0.946324` | `0.952137` |
 | 2 | `Extra Trees` | `gaze_high_confidence` | `0.948605` | `0.939588` | `0.946845` |
 | 3 | `K-Nearest Neighbors` | `gaze_high_confidence` | `0.932452` | `0.918142` | `0.931709` |
+| 4 | `Gradient Boosting` | `gaze_high_confidence` | `0.926579` | `0.921342` | `0.927586` |
 
 ### Full Comparison Tables
 
@@ -236,6 +237,7 @@ Report-ready figures and tables are available in [`docs/report_assets`](docs/rep
 - earlier Random Forest-specific assets in `docs/report_assets/`
 - expanded comparison assets in `docs/report_assets/model_comparison_20260531/`
 - experiment-setting architecture and flowchart diagrams in `docs/report_assets/experiment_diagrams_20260601/`
+- editable XML architecture diagrams for the 16 model variants of the current top 4 algorithms in `docs/diagrams/top4_models_all_variants_20260603/`
 
 The expanded comparison package includes:
 
@@ -257,9 +259,37 @@ These assets can be regenerated with:
 .venv\Scripts\python.exe docs\report_assets\generate_report_assets.py
 .venv\Scripts\python.exe docs\report_assets\generate_model_comparison_assets.py
 .venv\Scripts\python.exe docs\report_assets\generate_experiment_diagrams.py
+.venv\Scripts\python.exe docs\report_assets\generate_top4_model_architecture_xml.py
 ```
 
 ## Running the Pipeline
+
+## Running The Web App
+
+The repository now includes a Streamlit MVP for uploading a driver video and receiving:
+
+- overall class prediction
+- confidence and risk score
+- window-level timeline
+- exported frame and window prediction files
+- SQLite-backed persisted analysis records
+
+The default app model is the current best validated model in the repository:
+
+- `XGBoost`
+- setting: `gaze_high_confidence`
+
+Run it with the project virtual environment:
+
+```powershell
+.venv\Scripts\python.exe -m streamlit run app/streamlit_app.py
+```
+
+The web app stores final analysis results in:
+
+- `database/driver_state_app.sqlite3`
+
+This database keeps the analysis summary plus window-level prediction rows for each run.
 
 To run the full pipeline:
 
