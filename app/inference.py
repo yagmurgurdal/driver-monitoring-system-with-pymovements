@@ -398,11 +398,26 @@ def summarize_predictions(predictions_df: pd.DataFrame) -> dict[str, Any]:
     overall_label = label_map[top_prob_key]
     overall_confidence = float(mean_probabilities[top_prob_key])
     risk_score = float((mean_probabilities["prob_drowsiness"] + mean_probabilities["prob_distraction"]) * 100.0)
+    predicted_counts = {
+        label: int((predictions_df["predicted_label"] == label).sum())
+        for label in ("normal", "drowsiness", "distraction")
+    }
+    usable_window_count = int(len(predictions_df))
+    dominant_window_count = int(predicted_counts.get(overall_label, 0))
+    dominant_window_ratio = (
+        float(dominant_window_count / usable_window_count) if usable_window_count else 0.0
+    )
+    mean_winner_confidence = float(predictions_df[probability_columns].max(axis=1).mean())
 
     return {
         "overall_label": overall_label,
         "overall_confidence": round(overall_confidence, 4),
         "risk_score": round(risk_score, 1),
+        "mean_winner_confidence": round(mean_winner_confidence, 4),
+        "usable_window_count": usable_window_count,
+        "dominant_window_count": dominant_window_count,
+        "dominant_window_ratio": round(dominant_window_ratio, 4),
+        "predicted_window_counts": predicted_counts,
         "mean_probabilities": {
             label_map[key]: round(float(value), 4) for key, value in mean_probabilities.items()
         },

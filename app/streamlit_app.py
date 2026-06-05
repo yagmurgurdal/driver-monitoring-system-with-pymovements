@@ -150,21 +150,34 @@ def save_uploaded_video(uploaded_file) -> Path:
 
 
 def render_overview_cards(summary: dict, quality: dict, timeline_df: pd.DataFrame) -> None:
-    label_text = {
+    label_map = {
         "normal": "Normal",
         "drowsiness": "Uykulu",
         "distraction": "Dikkati Dagilmis",
-    }.get(summary["overall_label"], summary["overall_label"])
+    }
+    label_text = label_map.get(summary["overall_label"], summary["overall_label"])
 
     usable_windows = int(len(timeline_df))
     total_duration = 0.0 if timeline_df.empty else float(timeline_df["window_end_time"].max())
+    dominant_window_count = int(summary.get("dominant_window_count", 0))
+    dominant_window_ratio = float(summary.get("dominant_window_ratio", 0.0))
+    predicted_counts = summary.get("predicted_window_counts", {})
+    distribution_parts = [
+        f"{label_map.get(label, label)}: {int(predicted_counts.get(label, 0))}"
+        for label in ("distraction", "drowsiness", "normal")
+        if int(predicted_counts.get(label, 0)) > 0
+    ]
 
     cols = st.columns(4)
     cards = [
-        ("Genel Sonuc", label_text, "Video genelindeki baskin sinif"),
-        ("Guven", f"%{summary['overall_confidence'] * 100:.1f}", "Ortalama sinif guveni"),
+        ("Genel Sonuc", label_text, f"{usable_windows} pencere, yaklasik sure: {total_duration:.1f} sn"),
+        ("Model Olasiligi", f"%{summary['overall_confidence'] * 100:.1f}", "Baskin sinifin ortalama olasiligi"),
+        (
+            "Pencere Baskinligi",
+            f"%{dominant_window_ratio * 100:.1f}",
+            f"{dominant_window_count} / {usable_windows} pencere bu sinifa gitti",
+        ),
         ("Risk Skoru", f"{summary['risk_score']:.1f}/100", "Unsafe olasiliklarin toplami"),
-        ("Kullanilabilir Pencere", str(usable_windows), f"Yaklasik sure: {total_duration:.1f} sn"),
     ]
 
     for col, (title, value, subtitle) in zip(cols, cards):
@@ -179,6 +192,9 @@ def render_overview_cards(summary: dict, quality: dict, timeline_df: pd.DataFram
                 """,
                 unsafe_allow_html=True,
             )
+
+    if distribution_parts:
+        st.caption("Pencere dagilimi: " + " | ".join(distribution_parts))
 
     st.write("")
     quality_cols = st.columns(4)
